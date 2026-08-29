@@ -305,8 +305,18 @@ export const FIELD_META: Record<string, FieldMeta> = {
   withdrawal_callback_url: { label: "Callback de saque", group: "Endpoints", control: "url" },
 };
 
+/** Sobrescritas quando o mesmo nome de coluna existe em tabelas diferentes. */
+export const FIELD_META_BY_TABLE: Record<string, FieldMeta> = {
+  "onixpay_config.is_active": { label: "Conexão ativa", group: "Status", control: "switch" },
+  "influencer_settings.coin_return": {
+    label: "Retorno por moeda — influencer (R$)",
+    group: "Vantagens",
+    control: "currency",
+  },
+};
+
 export function fieldMeta(table: string, key: string): FieldMeta {
-  const meta = FIELD_META[key];
+  const meta = FIELD_META_BY_TABLE[`${table}.${key}`] ?? FIELD_META[key];
   if (meta) return meta;
   return {
     label: key.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()),
