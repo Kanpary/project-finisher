@@ -112,6 +112,17 @@ function RestrictedAccess() {
   );
 }
 
+const ADMIN_TABS = [
+  { value: "overview", label: "Visão geral" },
+  { value: "users", label: "Usuários" },
+  { value: "deposits", label: "Depósitos" },
+  { value: "withdrawals", label: "Saques" },
+  { value: "settings", label: "Configurações" },
+  { value: "banners", label: "Banners" },
+  { value: "commissions", label: "Comissões" },
+  { value: "logs", label: "Logs" },
+] as const;
+
 function AdminPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -120,12 +131,30 @@ function AdminPage() {
     if (!loading && !user) navigate({ to: "/auth", search: { mode: "login" } });
   }, [loading, user, navigate]);
 
+  const isAdmin = useQuery({
+    queryKey: ["is-admin", user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("has_role", {
+        _user_id: user!.id,
+        _role: "admin",
+      });
+      if (error) throw new Error(error.message);
+      return Boolean(data);
+    },
+  });
+
+  const checking = loading || (Boolean(user) && isAdmin.isLoading);
+  const allowed = isAdmin.data === true;
+
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-hero)" }}>
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6">
-        <div>
-          <h1 className="text-xl font-black tracking-tight text-foreground">Painel administrativo</h1>
-          <p className="text-sm text-muted-foreground">Gestão da plataforma Panda Pay</p>
+      <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-5 sm:py-6">
+        <div className="min-w-0">
+          <h1 className="truncate text-lg font-black tracking-tight text-foreground sm:text-xl">
+            Painel administrativo
+          </h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">Gestão da plataforma Panda Pay</p>
         </div>
         <Button asChild variant="ghost" size="sm">
           <Link to="/dashboard">
@@ -134,30 +163,55 @@ function AdminPage() {
         </Button>
       </header>
 
-      <main className="mx-auto max-w-6xl px-5 pb-16">
-        <Tabs defaultValue="overview">
-          <TabsList className="flex w-full flex-wrap justify-start">
-            <TabsTrigger value="overview">Visão geral</TabsTrigger>
-            <TabsTrigger value="users">Usuários</TabsTrigger>
-            <TabsTrigger value="deposits">Depósitos</TabsTrigger>
-            <TabsTrigger value="withdrawals">Saques</TabsTrigger>
-            <TabsTrigger value="settings">Configurações</TabsTrigger>
-            <TabsTrigger value="banners">Banners</TabsTrigger>
-            <TabsTrigger value="commissions">Comissões</TabsTrigger>
-            <TabsTrigger value="logs">Logs</TabsTrigger>
-          </TabsList>
+      <main className="mx-auto max-w-6xl px-4 pb-16 sm:px-5">
+        {checking ? (
+          <p className="text-sm text-muted-foreground">Verificando permissões...</p>
+        ) : isAdmin.error ? (
+          <ErrorState error={isAdmin.error} />
+        ) : !user ? (
+          <p className="text-sm text-muted-foreground">Redirecionando para o login...</p>
+        ) : !allowed ? (
+          <RestrictedAccess />
+        ) : (
+          <Tabs defaultValue="overview">
+            <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0">
+              <TabsList className="inline-flex w-max min-w-full gap-1 sm:flex sm:flex-wrap sm:justify-start">
+                {ADMIN_TABS.map((tab) => (
+                  <TabsTrigger key={tab.value} value={tab.value} className="whitespace-nowrap text-xs sm:text-sm">
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
 
-          <div className="mt-6">
-            <TabsContent value="overview">{user ? <OverviewTab /> : null}</TabsContent>
-            <TabsContent value="users">{user ? <UsersTab /> : null}</TabsContent>
-            <TabsContent value="deposits">{user ? <DepositsTab /> : null}</TabsContent>
-            <TabsContent value="withdrawals">{user ? <WithdrawalsTab /> : null}</TabsContent>
-            <TabsContent value="settings">{user ? <SettingsTab /> : null}</TabsContent>
-            <TabsContent value="banners">{user ? <BannersTab /> : null}</TabsContent>
-            <TabsContent value="commissions">{user ? <CommissionsTab /> : null}</TabsContent>
-            <TabsContent value="logs">{user ? <LogsTab /> : null}</TabsContent>
-          </div>
-        </Tabs>
+            <div className="mt-6">
+              <TabsContent value="overview">
+                <OverviewTab />
+              </TabsContent>
+              <TabsContent value="users">
+                <UsersTab />
+              </TabsContent>
+              <TabsContent value="deposits">
+                <DepositsTab />
+              </TabsContent>
+              <TabsContent value="withdrawals">
+                <WithdrawalsTab />
+              </TabsContent>
+              <TabsContent value="settings">
+                <SettingsTab />
+              </TabsContent>
+              <TabsContent value="banners">
+                <BannersTab />
+              </TabsContent>
+              <TabsContent value="commissions">
+                <CommissionsTab />
+              </TabsContent>
+              <TabsContent value="logs">
+                <LogsTab />
+              </TabsContent>
+            </div>
+          </Tabs>
+        )}
       </main>
     </div>
   );
@@ -170,7 +224,7 @@ function OverviewTab() {
   const { data, isLoading, error } = useQuery({ queryKey: ["admin-overview"], queryFn: () => fn() });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando métricas...</p>;
-  if (error) return <p className="text-sm text-destructive">{(error as Error).message}</p>;
+  if (error) return <ErrorState error={error} />;
   if (!data) return null;
 
   const cards: { label: string; value: string }[] = [
@@ -188,7 +242,7 @@ function OverviewTab() {
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
       {cards.map((card) => (
         <Card key={card.label}>
           <CardHeader className="pb-2">
