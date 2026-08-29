@@ -286,7 +286,7 @@ function UsersTab() {
       toast.success("Permissão atualizada");
       void invalidate();
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(friendlyError(err)),
   });
 
   const balanceMutation = useMutation({
@@ -296,7 +296,7 @@ function UsersTab() {
       toast.success("Saldo ajustado");
       void invalidate();
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(friendlyError(err)),
   });
 
   const promptAdjust = (userId: string) => {
@@ -336,6 +336,10 @@ function UsersTab() {
       </form>
 
       {users.isLoading ? <p className="text-sm text-muted-foreground">Carregando usuários...</p> : null}
+      {users.error ? <ErrorState error={users.error} /> : null}
+      {!users.isLoading && !users.error && (users.data?.users ?? []).length === 0 ? (
+        <EmptyState>Nenhum usuário encontrado para esta busca.</EmptyState>
+      ) : null}
 
       <div className="space-y-3">
         {(users.data?.users ?? []).map((item) => (
@@ -402,18 +406,19 @@ function StatusFilterBar({
 }: {
   value: StatusFilter;
   onChange: (next: StatusFilter) => void;
-  options: StatusFilter[];
+  options: readonly string[];
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((option) => (
+    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+      {["all", ...options].map((option) => (
         <Button
           key={option}
           size="sm"
+          className="whitespace-nowrap"
           variant={option === value ? "default" : "outline"}
           onClick={() => onChange(option)}
         >
-          {option}
+          {statusLabel(option)}
         </Button>
       ))}
     </div>
@@ -440,7 +445,7 @@ function DepositsTab() {
       toast.success("Depósito confirmado");
       void refresh();
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(friendlyError(err)),
   });
   const rejectMutation = useMutation({
     mutationFn: (depositId: string) => rejectFn({ data: { depositId } }),
@@ -448,17 +453,19 @@ function DepositsTab() {
       toast.success("Depósito recusado");
       void refresh();
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(friendlyError(err)),
   });
 
   return (
     <div className="space-y-4">
-      <StatusFilterBar
-        value={status}
-        onChange={setStatus}
-        options={["all", "pending", "paid", "rejected", "failed"]}
-      />
-      {deposits.isLoading ? <p className="text-sm text-muted-foreground">Carregando depósitos...</p> : null}
+      <StatusFilterBar value={status} onChange={setStatus} options={DEPOSIT_STATUSES} />
+      {deposits.isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      ) : null}
+      {deposits.error ? <ErrorState error={deposits.error} /> : null}
+      {!deposits.isLoading && !deposits.error && (deposits.data ?? []).length === 0 ? (
+        <EmptyState>Nenhum registro para este filtro.</EmptyState>
+      ) : null}
       <div className="space-y-3">
         {(deposits.data ?? []).map((row) => (
           <Card key={row.id}>
@@ -508,7 +515,7 @@ function WithdrawalsTab() {
       toast.success("Saque enviado para pagamento");
       void refresh();
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(friendlyError(err)),
   });
   const rejectMutation = useMutation({
     mutationFn: (input: { withdrawalId: string; reason: string }) => rejectFn({ data: input }),
@@ -516,17 +523,19 @@ function WithdrawalsTab() {
       toast.success("Saque recusado e valor devolvido");
       void refresh();
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(friendlyError(err)),
   });
 
   return (
     <div className="space-y-4">
-      <StatusFilterBar
-        value={status}
-        onChange={setStatus}
-        options={["all", "pending", "processing", "paid", "rejected", "failed"]}
-      />
-      {withdrawals.isLoading ? <p className="text-sm text-muted-foreground">Carregando saques...</p> : null}
+      <StatusFilterBar value={status} onChange={setStatus} options={WITHDRAWAL_STATUSES} />
+      {withdrawals.isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      ) : null}
+      {withdrawals.error ? <ErrorState error={withdrawals.error} /> : null}
+      {!withdrawals.isLoading && !withdrawals.error && (withdrawals.data ?? []).length === 0 ? (
+        <EmptyState>Nenhum registro para este filtro.</EmptyState>
+      ) : null}
       <div className="space-y-3">
         {(withdrawals.data ?? []).map((row) => (
           <Card key={row.id}>
@@ -605,7 +614,7 @@ function SettingsGroup({
       setDraft({});
       void queryClient.invalidateQueries({ queryKey: ["admin-settings"] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(friendlyError(err)),
   });
 
   if (!row) {
@@ -692,7 +701,7 @@ function SettingsTab() {
   const settings = useQuery({ queryKey: ["admin-settings"], queryFn: () => fn() });
 
   if (settings.isLoading) return <p className="text-sm text-muted-foreground">Carregando configurações...</p>;
-  if (settings.error) return <p className="text-sm text-destructive">{(settings.error as Error).message}</p>;
+  if (settings.error) return <ErrorState error={settings.error} />;
 
   const data = settings.data;
 
@@ -725,6 +734,7 @@ function BannersTab() {
   const [placement, setPlacement] = useState<(typeof PLACEMENTS)[number]>("landing");
 
   const banners = useQuery({ queryKey: ["admin-banners"], queryFn: () => listFn() });
+  // erro exibido abaixo do formulário
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin-banners"] });
 
   const saveMutation = useMutation({
@@ -744,7 +754,7 @@ function BannersTab() {
       setTitle("");
       void refresh();
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(friendlyError(err)),
   });
 
   const deleteMutation = useMutation({
@@ -753,7 +763,7 @@ function BannersTab() {
       toast.success("Banner removido");
       void refresh();
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(friendlyError(err)),
   });
 
   return (
@@ -828,8 +838,14 @@ function CommissionsTab() {
 
   return (
     <div className="space-y-4">
-      <StatusFilterBar value={status} onChange={setStatus} options={["all", "pending", "paid", "canceled"]} />
-      {commissions.isLoading ? <p className="text-sm text-muted-foreground">Carregando comissões...</p> : null}
+      <StatusFilterBar value={status} onChange={setStatus} options={COMMISSION_STATUSES} />
+      {commissions.isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      ) : null}
+      {commissions.error ? <ErrorState error={commissions.error} /> : null}
+      {!commissions.isLoading && !commissions.error && (commissions.data ?? []).length === 0 ? (
+        <EmptyState>Nenhum registro para este filtro.</EmptyState>
+      ) : null}
       <div className="space-y-2">
         {(commissions.data ?? []).map((row) => (
           <Card key={row.id}>
@@ -862,6 +878,7 @@ function LogsTab() {
         <RefreshCw className="mr-1.5 size-4" /> Atualizar
       </Button>
       {logs.isLoading ? <p className="text-sm text-muted-foreground">Carregando logs...</p> : null}
+      {logs.error ? <ErrorState error={logs.error} /> : null}
       <div className="space-y-2">
         {(logs.data ?? []).map((row) => (
           <Card key={row.id}>
