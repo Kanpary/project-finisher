@@ -1,52 +1,24 @@
-# Project Finisher
+# Remix of Pou lucas
 
-Verifique quais destes projetos repositórios foi o último a ser feito e qual tá mais completo:
-
-https://github.com/Kanpary/remix-of-pouzad
-
-https://github.com/Kanpary/remix-of-jardim-ap
+Login, cadastro e painel admin em /admin não estão funcionando
 
 
 
-Depois compare e veja qual bate com esse prompt abaixo com base nos arquivos de cada um:
+Clone esse repositório e crie o artefato fiel e completo do projeto: https://github.com/Kanpary/panda-pay-forge
 
 
 
-"O que falta fazer:
-
-Corrigir os filtros de status para casar com os enums reais de depósitos, saques e comissões.
-
-Reformatar a aba Configurações com rótulos em português, agrupamento e controles adequados por campo.
-
-Ajustar layout responsivo das abas/cards e mostrar mensagens de erro/permissão claras (inclusive "acesso restrito" quando não for admin).
+Veja todos os códigos e corrija definitivamente, depois faça Sync com o repositório Github: https://github.com/Kanpary/Panda-pay-backup
 
 
 
-Validar o resultado no navegador com uma sessão de admin e reler o log de build."
-
-
-
-Assim que você fazer tudo isso, clone o repositório correto e termine o projeto com esse prompt abaixo com base em tudo que eu disse:
-
-
-
-(O que falta fazer):
-
-Corrigir os filtros de status para casar com os enums reais de depósitos, saques e comissões.
-
-Reformatar a aba Configurações com rótulos em português, agrupamento e controles adequados por campo.
-
-Ajustar layout responsivo das abas/cards e mostrar mensagens de erro/permissão claras (inclusive "acesso restrito" quando não for admin).
-
-
-
-Validar o resultado no navegador com uma sessão de admin e reler o log de build.
+Verifique todos os códigos, corrija todos os erros, inconsistências, incongruências, incoerências, conflitos e coisas sem sentido
 
 This project was built with [Lovable](https://lovable.dev).
 
 ## Build with Lovable
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/bdbec544-365f-44e8-a62c-e302718f4346).
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/303b8fdd-5293-40fc-8857-e685ebfc95c6).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
 - **Stay in sync**: every change made in Lovable is committed straight to this repository.
