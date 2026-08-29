@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, ShieldAlert, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,18 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { formatBRL, formatDateTime } from "@/lib/money";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  COMMISSION_STATUSES,
+  DEPOSIT_STATUSES,
+  SETTINGS_SECTIONS,
+  WITHDRAWAL_STATUSES,
+  fieldMeta,
+  friendlyError,
+  statusLabel,
+  statusTone,
+  type FieldMeta,
+} from "@/lib/admin-ui";
 import {
   adjustBalance,
   approveDeposit,
@@ -53,17 +65,51 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type StatusFilter = "all" | "pending" | "paid" | "rejected" | "failed" | "canceled" | "processing";
+type StatusFilter = string;
 
 function StatusBadge({ status }: { status: string | null }) {
-  const value = status ?? "-";
-  const variant =
-    value === "paid" || value === "approved"
-      ? "default"
-      : value === "pending" || value === "processing"
-        ? "secondary"
-        : "destructive";
-  return <Badge variant={variant}>{value}</Badge>;
+  const tone = statusTone(status);
+  const variant = tone === "success" ? "default" : tone === "warning" ? "secondary" : tone === "danger" ? "destructive" : "outline";
+  return <Badge variant={variant}>{statusLabel(status)}</Badge>;
+}
+
+function ErrorState({ error }: { error: unknown }) {
+  return (
+    <div
+      role="alert"
+      className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+    >
+      <ShieldAlert className="mt-0.5 size-4 shrink-0" />
+      <span>{friendlyError(error)}</span>
+    </div>
+  );
+}
+
+function EmptyState({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+
+function RestrictedAccess() {
+  return (
+    <Card className="mx-auto max-w-md">
+      <CardHeader className="items-center text-center">
+        <ShieldAlert className="size-8 text-destructive" />
+        <CardTitle className="text-lg">Acesso restrito</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4 text-center">
+        <p className="text-sm text-muted-foreground">
+          Esta área é exclusiva para administradores. Sua conta não tem essa permissão.
+        </p>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/dashboard">Voltar para minha conta</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
 }
 
 function AdminPage() {
