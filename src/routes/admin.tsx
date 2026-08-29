@@ -553,7 +553,7 @@ function WithdrawalsTab() {
                 <p className="text-xs text-muted-foreground">Líquido: {formatBRL(row.net_amount)}</p>
               </div>
               <StatusBadge status={row.status} />
-              {row.status === "pending" ? (
+              {row.status === "pending" || row.status === "approved" ? (
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => approveMutation.mutate(row.id)}>
                     Aprovar e pagar
@@ -581,26 +581,112 @@ function WithdrawalsTab() {
 
 /* ---------------------------------------------------------------- */
 
-const SETTINGS_TABLES = [
-  { key: "game", table: "game_settings", label: "Jogo" },
-  { key: "character", table: "character_settings", label: "Personagem" },
-  { key: "financial", table: "financial_settings", label: "Financeiro" },
-  { key: "commission", table: "commission_settings", label: "Comissões" },
-  { key: "influencer", table: "influencer_settings", label: "Influencers" },
-  { key: "onixpay", table: "onixpay_config", label: "Gateway PIX" },
-] as const;
-
-const HIDDEN_FIELDS = new Set(["id", "created_at", "updated_at"]);
+const HIDDEN_FIELDS = new Set(["id", "created_at", "updated_at", "user_id"]);
 
 type SettingsValue = string | number | boolean | null;
 
+function SettingsField({
+  table,
+  fieldKey,
+  meta,
+  value,
+  onChange,
+}: {
+  table: string;
+  fieldKey: string;
+  meta: FieldMeta;
+  value: SettingsValue;
+  onChange: (next: SettingsValue) => void;
+}) {
+  const id = `${table}-${fieldKey}`;
+  const control = meta.control ?? "text";
+
+  if (control === "switch") {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card/40 p-3">
+        <div className="min-w-0">
+          <Label htmlFor={id} className="text-sm font-medium text-foreground">
+            {meta.label}
+          </Label>
+          {meta.help ? <p className="text-xs text-muted-foreground">{meta.help}</p> : null}
+        </div>
+        <Switch id={id} checked={Boolean(value)} onCheckedChange={(checked) => onChange(checked)} />
+      </div>
+    );
+  }
+
+  if (control === "select" && meta.options) {
+    return (
+      <div className="space-y-1.5">
+        <Label htmlFor={id} className="text-sm font-medium text-foreground">
+          {meta.label}
+        </Label>
+        <select
+          id={id}
+          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+          value={value === null ? "" : String(value)}
+          onChange={(event) => onChange(event.target.value)}
+        >
+          {meta.options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {meta.help ? <p className="text-xs text-muted-foreground">{meta.help}</p> : null}
+      </div>
+    );
+  }
+
+  const numeric = control === "number" || control === "currency" || control === "percent";
+  const step = meta.step ?? (control === "currency" ? 0.01 : control === "percent" ? 0.1 : "any");
+
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-sm font-medium text-foreground">
+        {meta.label}
+      </Label>
+      <div className="relative">
+        {control === "currency" ? (
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+            R$
+          </span>
+        ) : null}
+        <Input
+          id={id}
+          type={numeric ? "number" : control === "url" ? "url" : "text"}
+          inputMode={numeric ? "decimal" : undefined}
+          step={numeric ? step : undefined}
+          min={meta.min}
+          max={meta.max}
+          placeholder={control === "url" ? "https://..." : undefined}
+          className={control === "currency" ? "pl-9" : control === "percent" ? "pr-9" : undefined}
+          value={value === null ? "" : String(value)}
+          onChange={(event) => {
+            const raw = event.target.value;
+            onChange(numeric ? (raw === "" ? null : Number(raw)) : raw);
+          }}
+        />
+        {control === "percent" ? (
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+            %
+          </span>
+        ) : null}
+      </div>
+      {meta.help ? <p className="text-xs text-muted-foreground">{meta.help}</p> : null}
+    </div>
+  );
+}
+
 function SettingsGroup({
   label,
+  description,
   table,
   row,
 }: {
   label: string;
-  table: (typeof SETTINGS_TABLES)[number]["table"];
+  description: string;
+  table: string;
   row: Record<string, unknown> | null;
 }) {
   const queryClient = useQueryClient();
@@ -608,7 +694,8 @@ function SettingsGroup({
   const [draft, setDraft] = useState<Record<string, SettingsValue>>({});
 
   const mutation = useMutation({
-    mutationFn: (values: Record<string, SettingsValue>) => saveFn({ data: { table, values } }),
+    mutationFn: (values: Record<string, SettingsValue>) =>
+      saveFn({ data: { table: table as never, values } }),
     onSuccess: () => {
       toast.success(`${label}: configurações salvas`);
       setDraft({});
@@ -641,56 +728,52 @@ function SettingsGroup({
     return null;
   };
 
+  const grouped = new Map<string, string[]>();
+  for (const key of fields) {
+    const group = fieldMeta(table, key).group ?? "Outros";
+    grouped.set(group, [...(grouped.get(group) ?? []), key]);
+  }
+
+  const dirty = Object.keys(draft).length > 0;
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="gap-1">
         <CardTitle className="text-base">{label}</CardTitle>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {fields.map((key) => {
-            const value = current(key);
-            const original = row[key];
-            const isBoolean = typeof original === "boolean" || typeof value === "boolean";
-            const isNumber = typeof original === "number";
-            return (
-              <div key={key} className="space-y-1.5">
-                <Label htmlFor={`${table}-${key}`} className="text-xs text-muted-foreground">
-                  {key}
-                </Label>
-                {isBoolean ? (
-                  <div>
-                    <Switch
-                      id={`${table}-${key}`}
-                      checked={Boolean(value)}
-                      onCheckedChange={(checked) => setDraft((prev) => ({ ...prev, [key]: checked }))}
-                    />
-                  </div>
-                ) : (
-                  <Input
-                    id={`${table}-${key}`}
-                    type={isNumber ? "number" : "text"}
-                    step="any"
-                    value={value === null ? "" : String(value)}
-                    onChange={(event) => {
-                      const raw = event.target.value;
-                      setDraft((prev) => ({
-                        ...prev,
-                        [key]: isNumber ? (raw === "" ? null : Number(raw)) : raw,
-                      }));
-                    }}
-                  />
-                )}
-              </div>
-            );
-          })}
+      <CardContent className="space-y-6">
+        {[...grouped.entries()].map(([group, keys]) => (
+          <section key={group} className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group}</h3>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {keys.map((key) => (
+                <SettingsField
+                  key={key}
+                  table={table}
+                  fieldKey={key}
+                  meta={fieldMeta(table, key)}
+                  value={current(key)}
+                  onChange={(next) => setDraft((prev) => ({ ...prev, [key]: next }))}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
+
+        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+          <Button disabled={!dirty || mutation.isPending} onClick={() => mutation.mutate(draft)}>
+            {mutation.isPending ? "Salvando..." : "Salvar alterações"}
+          </Button>
+          <Button variant="ghost" size="sm" disabled={!dirty} onClick={() => setDraft({})}>
+            Descartar
+          </Button>
+          {dirty ? (
+            <span className="text-xs text-muted-foreground">
+              {Object.keys(draft).length} campo(s) alterado(s)
+            </span>
+          ) : null}
         </div>
-        <Button
-          disabled={Object.keys(draft).length === 0 || mutation.isPending}
-          onClick={() => mutation.mutate(draft)}
-        >
-          Salvar {label.toLowerCase()}
-        </Button>
       </CardContent>
     </Card>
   );
@@ -703,14 +786,15 @@ function SettingsTab() {
   if (settings.isLoading) return <p className="text-sm text-muted-foreground">Carregando configurações...</p>;
   if (settings.error) return <ErrorState error={settings.error} />;
 
-  const data = settings.data;
+  const data = settings.data as Record<string, unknown> | undefined;
 
   return (
     <div className="space-y-4">
-      {SETTINGS_TABLES.map((section) => (
+      {SETTINGS_SECTIONS.map((section) => (
         <SettingsGroup
           key={section.table}
           label={section.label}
+          description={section.description}
           table={section.table}
           row={(data?.[section.key] ?? null) as Record<string, unknown> | null}
         />
