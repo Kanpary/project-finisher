@@ -28,7 +28,7 @@ export type Database = {
           action: string
           admin_user_id: string
           created_at?: string
-          id?: number
+          id?: never
           ip_address?: string | null
           metadata?: Json | null
           target_user_id?: string | null
@@ -37,7 +37,7 @@ export type Database = {
           action?: string
           admin_user_id?: string
           created_at?: string
-          id?: number
+          id?: never
           ip_address?: string | null
           metadata?: Json | null
           target_user_id?: string | null
@@ -60,7 +60,7 @@ export type Database = {
           affiliate_user_id: string
           amount: number
           created_at?: string
-          id?: number
+          id?: never
           referred_user_id: string
           source_id?: string | null
           source_type?: Database["public"]["Enums"]["commission_source"]
@@ -71,7 +71,7 @@ export type Database = {
           affiliate_user_id?: string
           amount?: number
           created_at?: string
-          id?: number
+          id?: never
           referred_user_id?: string
           source_id?: string | null
           source_type?: Database["public"]["Enums"]["commission_source"]
@@ -642,7 +642,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           game_session_id?: string | null
-          id?: number
+          id?: never
           reason?: string | null
           type: Database["public"]["Enums"]["wallet_tx_type"]
           user_id: string
@@ -655,7 +655,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           game_session_id?: string | null
-          id?: number
+          id?: never
           reason?: string | null
           type?: Database["public"]["Enums"]["wallet_tx_type"]
           user_id?: string
@@ -714,7 +714,7 @@ export type Database = {
           created_at?: string
           event_type?: string | null
           external_id?: string | null
-          id?: number
+          id?: never
           payload?: Json | null
           processing_status?: Database["public"]["Enums"]["webhook_processing_status"]
           provider: string
@@ -725,7 +725,7 @@ export type Database = {
           created_at?: string
           event_type?: string | null
           external_id?: string | null
-          id?: number
+          id?: never
           payload?: Json | null
           processing_status?: Database["public"]["Enums"]["webhook_processing_status"]
           provider?: string
